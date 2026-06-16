@@ -67,6 +67,18 @@ export function levelLabel(level) {
   }[level];
 }
 
+function scanLabelFromDate(value, index = 0) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return index === 0 ? "Just now" : "Earlier";
+  if (index === 0) return "Just now";
+  return date.toLocaleString("en", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export function makeReport(rawUrl, index = 0) {
   const normalizedUrl = normalizeUrl(rawUrl);
   const domain = domainFromUrl(normalizedUrl) || "unknown.local";
@@ -93,7 +105,6 @@ export function makeReport(rawUrl, index = 0) {
   const level = riskLevel(score);
   const scanId = `SNT-${hash.toString(16).slice(0, 8)}`;
   const responseMs = 120 + (hash % 840);
-  const createdLabel = index === 0 ? "10:24 AM" : index < 4 ? "Yesterday" : `${10 + index} Jun 2026`;
   const isClean = level === "low";
   const createdAt = new Date(Date.now() - index * 1000 * 60 * 48).toISOString();
 
@@ -109,7 +120,7 @@ export function makeReport(rawUrl, index = 0) {
     riskLevel: level,
     status: statusFor(level),
     verdict: isClean ? "Looks safe" : level === "medium" ? "Review suggested" : "Review recommended",
-    scannedAt: createdLabel,
+    scannedAt: scanLabelFromDate(createdAt, index),
     createdAt,
     updatedAt: createdAt,
     ip: `${20 + (hash % 180)}.${80 + (hash % 70)}.${12 + (hash % 180)}.${20 + (hash % 190)}`,

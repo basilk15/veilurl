@@ -380,6 +380,7 @@ button:disabled {
 }
 
 .scan-form {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 164px;
   gap: 12px;
@@ -396,6 +397,22 @@ button:disabled {
   background: rgba(20, 88, 230, 0.06);
   border-color: rgba(20, 88, 230, 0.34);
   box-shadow: 0 12px 32px rgba(20, 88, 230, 0.12);
+}
+
+.scan-form.drop-active::after {
+  position: absolute;
+  inset: -1px;
+  z-index: 2;
+  display: grid;
+  place-items: center;
+  color: var(--blue);
+  background: rgba(255, 255, 255, 0.86);
+  border: 1px dashed rgba(20, 88, 230, 0.52);
+  border-radius: calc(var(--radius) + 4px);
+  content: "Drop URL to scan";
+  font-size: 14px;
+  font-weight: 850;
+  pointer-events: none;
 }
 
 .scan-form.drop-active .url-field {

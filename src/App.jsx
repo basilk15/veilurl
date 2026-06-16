@@ -50,6 +50,34 @@ function firstUrlFromText(value) {
   return domainLike ? domainLike.replace(/[),.;]+$/, "") : text;
 }
 
+function reportDate(report) {
+  const value = report.updatedAt || report.createdAt;
+  const date = value ? new Date(value) : null;
+  return date && !Number.isNaN(date.getTime()) ? date : null;
+}
+
+function fullScanTime(report) {
+  const date = reportDate(report);
+  if (!date) return report.scannedAt || "Not recorded";
+  return date.toLocaleString("en", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function compactScanTime(report) {
+  const date = reportDate(report);
+  if (!date) return report.scannedAt || "Earlier";
+  const ageMs = Date.now() - date.getTime();
+  if (ageMs < 60_000) return "Just now";
+  if (ageMs < 60 * 60_000) return `${Math.floor(ageMs / 60_000)}m ago`;
+  if (ageMs < 24 * 60 * 60_000) return date.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
+  return date.toLocaleDateString("en", { day: "2-digit", month: "short", year: "numeric" });
+}
+
 function exportReportsCsv(reports) {
   const headers = ["domain", "url", "threat_score", "web_posture_score", "severity", "verdict", "scan_id", "scanned_at"];
   const rows = reports.map((report) => [
@@ -60,7 +88,7 @@ function exportReportsCsv(reports) {
     report.level,
     report.verdict,
     report.id,
-    report.scannedAt,
+    fullScanTime(report),
   ]);
   const csv = [headers, ...rows]
     .map((row) => row.map((cell) => `"${String(cell ?? "").replaceAll('"', '""')}"`).join(","))
@@ -475,6 +503,7 @@ function ScannerView({
               event.dataTransfer.getData("text/plain");
             onDroppedUrl(payload);
           }}
+          aria-label="URL scanner drop target"
         >
           <div className={`url-field ${formError ? "error" : ""}`}>
             <Globe2 size={22} />
@@ -581,7 +610,7 @@ function ReportPanel({ report, onRescan }) {
           </div>
         </div>
         <div className="scan-facts">
-          <Fact label="Scanned" value="15 Jun 2026, 10:24 AM" />
+          <Fact label="Scanned" value={fullScanTime(report)} />
           <Fact label="Scan ID" value={report.id} copy />
           <Fact label="IP address" value={report.ip} copy />
           <Fact label="Server" value={report.server} />
@@ -1074,7 +1103,7 @@ function RecentScans({ reports, onSelectReport, setActiveView }) {
                 {levelLabel(report.level)}
               </small>
             </span>
-            <em>{report.scannedAt}</em>
+            <em>{compactScanTime(report)}</em>
             <ChevronRight size={16} />
           </button>
         ))}
@@ -1158,7 +1187,7 @@ function HistoryView({
           <div className="history-table panel">
             <div className="table-row table-head">
               <span>URL / Domain</span>
-              <span>Risk Score</span>
+              <span>Threat Score</span>
               <span>Severity</span>
               <span>Verdict</span>
               <span>Created</span>
@@ -1184,7 +1213,7 @@ function HistoryView({
                   <strong>{report.verdict}</strong>
                   <small>{report.level === "low" ? "No action needed" : "Review recommended"}</small>
                 </span>
-                <span>{report.scannedAt}</span>
+                <span>{compactScanTime(report)}</span>
                 <span className="report-id">{report.id}</span>
                 <span className="row-actions">
                   <button onClick={() => onSelectReport(report)} aria-label={`Open ${report.domain}`}>
