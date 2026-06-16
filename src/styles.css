@@ -383,6 +383,24 @@ button:disabled {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 164px;
   gap: 12px;
+  padding: 2px;
+  border: 1px solid transparent;
+  border-radius: calc(var(--radius) + 4px);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.scan-form.drop-active {
+  background: rgba(20, 88, 230, 0.06);
+  border-color: rgba(20, 88, 230, 0.34);
+  box-shadow: 0 12px 32px rgba(20, 88, 230, 0.12);
+}
+
+.scan-form.drop-active .url-field {
+  border-color: rgba(20, 88, 230, 0.56);
+  box-shadow: 0 0 0 4px rgba(20, 88, 230, 0.1);
 }
 
 .url-field,

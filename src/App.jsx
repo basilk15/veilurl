@@ -41,6 +41,15 @@ import { makeSummary } from "./lib/localNarrator.js";
 const initialReports = makeSeedReports();
 const defaultWatchlist = ["secure-bank-update.net", "invoice-pay-secure.org", "crypto-airdrop-bonus.info"];
 
+function firstUrlFromText(value) {
+  const text = String(value || "").trim();
+  if (!text) return "";
+  const explicit = text.match(/https?:\/\/[^\s<>"']+/i)?.[0];
+  if (explicit) return explicit.replace(/[),.;]+$/, "");
+  const domainLike = text.match(/\b(?:[a-z0-9-]+\.)+[a-z]{2,}(?:\/[^\s<>"']*)?/i)?.[0];
+  return domainLike ? domainLike.replace(/[),.;]+$/, "") : text;
+}
+
 function exportReportsCsv(reports) {
   const headers = ["domain", "url", "threat_score", "web_posture_score", "severity", "verdict", "scan_id", "scanned_at"];
   const rows = reports.map((report) => [
@@ -121,17 +130,18 @@ function App() {
     });
   }, [reports, filter, query]);
 
-  async function runScan(event) {
-    event?.preventDefault();
+  async function runScan(event, overrideUrl) {
+    event?.preventDefault?.();
     setFormError("");
 
     let normalized;
     try {
-      normalized = normalizeUrl(inputUrl);
+      normalized = normalizeUrl(overrideUrl || inputUrl);
       const parsed = new URL(normalized);
       if (!["http:", "https:"].includes(parsed.protocol) || !parsed.hostname.includes(".")) {
         throw new Error("Invalid URL");
       }
+      if (overrideUrl) setInputUrl(normalized);
     } catch {
       setFormError("Enter a valid URL, for example https://example.com");
       return;
@@ -205,6 +215,7 @@ function App() {
               isScanning={isScanning}
               formError={formError}
               onScan={runScan}
+              onDroppedUrl={(value) => runScan(null, firstUrlFromText(value))}
               onSelectReport={selectReport}
               setActiveView={setActiveView}
               apiStatus={apiStatus}
@@ -423,10 +434,12 @@ function ScannerView({
   isScanning,
   formError,
   onScan,
+  onDroppedUrl,
   onSelectReport,
   setActiveView,
   apiStatus,
 }) {
+  const [isDropActive, setIsDropActive] = useState(false);
   const statusText = {
     checking: "Checking backend availability...",
     mongodb: "MongoDB persistence active. Reports are saved across sessions.",
@@ -437,7 +450,32 @@ function ScannerView({
   return (
     <section className="scanner-grid">
       <div className="scanner-main">
-        <form className="scan-form" onSubmit={onScan}>
+        <form
+          className={`scan-form ${isDropActive ? "drop-active" : ""}`}
+          onSubmit={onScan}
+          onDragEnter={(event) => {
+            event.preventDefault();
+            setIsDropActive(true);
+          }}
+          onDragOver={(event) => {
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "copy";
+            setIsDropActive(true);
+          }}
+          onDragLeave={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) {
+              setIsDropActive(false);
+            }
+          }}
+          onDrop={(event) => {
+            event.preventDefault();
+            setIsDropActive(false);
+            const payload =
+              event.dataTransfer.getData("text/uri-list") ||
+              event.dataTransfer.getData("text/plain");
+            onDroppedUrl(payload);
+          }}
+        >
           <div className={`url-field ${formError ? "error" : ""}`}>
             <Globe2 size={22} />
             <input
