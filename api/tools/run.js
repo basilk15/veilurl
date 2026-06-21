@@ -1,5 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
+import chromium from "@sparticuz/chromium";
 import { ESLint } from "eslint";
 import { HtmlValidate } from "html-validate";
 import { check as checkLinks } from "linkinator";
@@ -97,7 +98,40 @@ function getOrigin(req) {
 }
 
 async function runLint() {
-  const eslint = new ESLint({ cwd: projectRoot });
+  const eslint = new ESLint({
+    cwd: projectRoot,
+    overrideConfigFile: true,
+    overrideConfig: [
+      {
+        ignores: ["dist/**", "node_modules/**"],
+      },
+      {
+        files: ["**/*.{js,jsx}"],
+        languageOptions: {
+          ecmaVersion: "latest",
+          sourceType: "module",
+          parserOptions: {
+            ecmaFeatures: {
+              jsx: true,
+            },
+          },
+          globals: {
+            Blob: "readonly",
+            Buffer: "readonly",
+            console: "readonly",
+            document: "readonly",
+            fetch: "readonly",
+            process: "readonly",
+            URL: "readonly",
+            window: "readonly",
+          },
+        },
+        rules: {
+          "no-unused-vars": ["warn", { argsIgnorePattern: "^_", varsIgnorePattern: "^_" }],
+        },
+      },
+    ],
+  });
   const results = await eslint.lintFiles(["src/**/*.{js,jsx}", "api/**/*.js", "*.js"]);
   const errorCount = results.reduce((total, item) => total + item.errorCount, 0);
   const warningCount = results.reduce((total, item) => total + item.warningCount, 0);
@@ -151,12 +185,20 @@ async function runHtmlValidate() {
 
 async function runPa11y(req) {
   const url = getOrigin(req);
+  const chromeLaunchConfig = process.env.VERCEL
+    ? {
+        args: chromium.args,
+        defaultViewport: chromium.defaultViewport,
+        executablePath: await chromium.executablePath(),
+        headless: chromium.headless,
+      }
+    : {
+        args: ["--no-sandbox"],
+      };
   const report = await pa11y(url, {
     standard: "WCAG2AA",
     timeout: 30_000,
-    chromeLaunchConfig: {
-      args: ["--no-sandbox"],
-    },
+    chromeLaunchConfig,
   });
   const errors = report.issues.filter((issue) => issue.type === "error");
   const lines = report.issues.map((issue) => `${issue.type.toUpperCase()}: ${issue.message}\n${issue.selector}`);
