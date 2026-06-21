@@ -34,6 +34,15 @@ export async function deleteReportById(id) {
   return parseJson(response);
 }
 
+export async function runAnalysisTool(toolId) {
+  const response = await fetch("/api/tools/run", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ toolId }),
+  });
+  return parseJson(response);
+}
+
 export function fallbackReports() {
   return makeSeedReports();
 }

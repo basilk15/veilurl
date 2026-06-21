@@ -21,7 +21,7 @@ export async function saveReport(report) {
   const saved = await ScanReport.findOneAndUpdate(
     { id: report.id },
     { $set: report },
-    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true }
+    { returnDocument: "after", upsert: true, setDefaultsOnInsert: true },
   );
 
   return { report: serializeReport(saved), persisted: true };
@@ -33,7 +33,9 @@ export async function listReports({ severity, search, page = 1, pageSize = 20 })
     if (severity && severity !== "all") reports = reports.filter((report) => report.level === severity);
     if (search) {
       const lower = search.toLowerCase();
-      reports = reports.filter((report) => report.domain.toLowerCase().includes(lower) || report.id.toLowerCase().includes(lower));
+      reports = reports.filter(
+        (report) => report.domain.toLowerCase().includes(lower) || report.id.toLowerCase().includes(lower),
+      );
     }
     return {
       reports,

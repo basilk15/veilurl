@@ -22,9 +22,13 @@ export async function collectTlsRecon(domain) {
       const daysRemaining = Number.isFinite(validToTime)
         ? Math.ceil((validToTime - Date.now()) / (1000 * 60 * 60 * 24))
         : null;
-      const san = typeof cert.subjectaltname === "string"
-        ? cert.subjectaltname.split(",").map((item) => item.trim().replace(/^DNS:/, "")).slice(0, 12)
-        : [];
+      const san =
+        typeof cert.subjectaltname === "string"
+          ? cert.subjectaltname
+              .split(",")
+              .map((item) => item.trim().replace(/^DNS:/, ""))
+              .slice(0, 12)
+          : [];
 
       finish({
         available: true,

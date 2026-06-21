@@ -61,8 +61,14 @@ export async function collectRdapRecon(domain) {
       updatedAt: eventDate(payload.events, "last changed"),
       registeredDays: daysBetween(registeredAt),
       expiresDays: daysUntil(expiresAt),
-      nameservers: (payload.nameservers || []).map((server) => server.ldhName).filter(Boolean).slice(0, 8),
-      notices: (payload.notices || []).map((notice) => notice.title).filter(Boolean).slice(0, 4),
+      nameservers: (payload.nameservers || [])
+        .map((server) => server.ldhName)
+        .filter(Boolean)
+        .slice(0, 8),
+      notices: (payload.notices || [])
+        .map((notice) => notice.title)
+        .filter(Boolean)
+        .slice(0, 4),
     };
   } catch (error) {
     return {

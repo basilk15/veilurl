@@ -2,10 +2,12 @@ import { fetchSmallText } from "./http.js";
 
 function extractLine(text, key) {
   const lower = key.toLowerCase();
-  return text
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .find((line) => line.toLowerCase().startsWith(`${lower}:`)) || "";
+  return (
+    text
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => line.toLowerCase().startsWith(`${lower}:`)) || ""
+  );
 }
 
 export async function collectSecurityTxt(origin) {

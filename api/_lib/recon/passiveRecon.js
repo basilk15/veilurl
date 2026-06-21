@@ -30,7 +30,11 @@ export async function runPassiveRecon(inputUrl) {
     capture("dns", () => collectDnsRecon(safeTarget.hostname)),
     capture("rdap", () => collectRdapRecon(safeTarget.hostname)),
     capture("http", () => collectHttpRecon(inputUrl)),
-    capture("tls", () => parsed.protocol === "https:" ? collectTlsRecon(safeTarget.hostname) : Promise.resolve({ available: false, error: "HTTPS not used" })),
+    capture("tls", () =>
+      parsed.protocol === "https:"
+        ? collectTlsRecon(safeTarget.hostname)
+        : Promise.resolve({ available: false, error: "HTTPS not used" }),
+    ),
     capture("securityTxt", () => collectSecurityTxt(origin)),
     capture("robotsTxt", () => collectRobotsTxt(origin)),
   ]);

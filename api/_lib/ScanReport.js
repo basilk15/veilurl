@@ -7,7 +7,7 @@ const scoreBreakdownSchema = new mongoose.Schema(
     reputation: Number,
     content: Number,
   },
-  { _id: false }
+  { _id: false },
 );
 
 const scanReportSchema = new mongoose.Schema(
@@ -40,7 +40,7 @@ const scanReportSchema = new mongoose.Schema(
     scoreBreakdown: scoreBreakdownSchema,
     recon: mongoose.Schema.Types.Mixed,
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 export default mongoose.models.ScanReport || mongoose.model("ScanReport", scanReportSchema);

@@ -27,9 +27,15 @@ export function enrichReportWithRecon(report, recon) {
     ip: dns?.a?.[0] || recon?.target?.addresses?.[0] || report.ip,
     server: http?.server || report.server,
     redirectCount: typeof http?.hopCount === "number" ? http.hopCount : report.redirectCount,
-    headerMisses: typeof http?.headers?.missing?.length === "number" ? http.headers.missing.length : report.headerMisses,
+    headerMisses:
+      typeof http?.headers?.missing?.length === "number" ? http.headers.missing.length : report.headerMisses,
     registeredDays: typeof rdap?.registeredDays === "number" ? rdap.registeredDays : report.registeredDays,
-    expiresDays: typeof rdap?.expiresDays === "number" ? rdap.expiresDays : typeof tls?.daysRemaining === "number" ? tls.daysRemaining : report.expiresDays,
+    expiresDays:
+      typeof rdap?.expiresDays === "number"
+        ? rdap.expiresDays
+        : typeof tls?.daysRemaining === "number"
+          ? tls.daysRemaining
+          : report.expiresDays,
   };
 
   let risk = 0;
@@ -70,12 +76,33 @@ export function enrichReportWithRecon(report, recon) {
   next.level = riskLevel(next.score);
   next.riskLevel = next.level;
   next.status = statusFor(next.level);
-  next.verdict = next.level === "low" ? "Looks safe" : next.level === "medium" ? "Review suggested" : "Review recommended";
+  next.verdict =
+    next.level === "low" ? "Looks safe" : next.level === "medium" ? "Review suggested" : "Review recommended";
   next.scoreBreakdown = {
-    domain: clampScore(Math.min(25, 4 + next.keywordHits.length * 6 + (next.registeredDays < 120 ? 8 : 0) + (rdap?.found ? 0 : 4))),
-    security: clampScore(Math.max(0, 25 - next.headerMisses * 3 - (tls?.expired ? 12 : 0) - (tls?.expiringSoon ? 5 : 0) - (next.url.startsWith("https://") ? 0 : 8))),
-    reputation: clampScore(Math.min(25, next.reputationHits ? 18 + next.reputationHits * 2 : 3 + (securityTxt?.found ? 0 : 2) + (robotsTxt?.found ? 0 : 1))),
-    content: clampScore(Math.min(25, 5 + next.keywordHits.length * 4 + next.redirectCount * 3 + (http?.crossDomain ? 6 : 0))),
+    domain: clampScore(
+      Math.min(25, 4 + next.keywordHits.length * 6 + (next.registeredDays < 120 ? 8 : 0) + (rdap?.found ? 0 : 4)),
+    ),
+    security: clampScore(
+      Math.max(
+        0,
+        25 -
+          next.headerMisses * 3 -
+          (tls?.expired ? 12 : 0) -
+          (tls?.expiringSoon ? 5 : 0) -
+          (next.url.startsWith("https://") ? 0 : 8),
+      ),
+    ),
+    reputation: clampScore(
+      Math.min(
+        25,
+        next.reputationHits
+          ? 18 + next.reputationHits * 2
+          : 3 + (securityTxt?.found ? 0 : 2) + (robotsTxt?.found ? 0 : 1),
+      ),
+    ),
+    content: clampScore(
+      Math.min(25, 5 + next.keywordHits.length * 4 + next.redirectCount * 3 + (http?.crossDomain ? 6 : 0)),
+    ),
   };
   next.summary = makeSummary(next);
 

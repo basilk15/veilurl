@@ -1,7 +1,13 @@
 :root {
   color-scheme: light;
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    "Segoe UI",
+    sans-serif;
   --bg: #f7f9fc;
   --surface: #ffffff;
   --surface-2: #f9fbff;
@@ -34,8 +40,7 @@ body {
   min-width: 320px;
   background:
     linear-gradient(rgba(20, 88, 230, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(20, 88, 230, 0.025) 1px, transparent 1px),
-    var(--bg);
+    linear-gradient(90deg, rgba(20, 88, 230, 0.025) 1px, transparent 1px), var(--bg);
   background-size: 42px 42px;
   color: var(--text);
 }
@@ -656,7 +661,7 @@ button:disabled {
 
 .severity-chip.critical,
 .status-badge.fail {
-  color: var(--red);
+  color: #b91c1c;
   background: var(--red-soft);
   border: 1px solid rgba(220, 38, 38, 0.26);
 }
@@ -997,6 +1002,68 @@ button:disabled {
   margin: 14px;
 }
 
+.safe-tools-panel {
+  overflow: hidden;
+}
+
+.safe-tool-list {
+  display: grid;
+}
+
+.safe-tool-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  gap: 10px;
+  align-items: center;
+  min-height: 62px;
+  padding: 12px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.safe-tool-row > svg {
+  color: var(--blue);
+}
+
+.safe-tool-row div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.safe-tool-row strong,
+.safe-tool-row span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.safe-tool-row span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.safe-tool-row code {
+  grid-column: 2;
+  width: fit-content;
+  max-width: 100%;
+  padding: 5px 7px;
+  overflow-wrap: anywhere;
+  color: #173056;
+  background: var(--blue-soft);
+  border: 1px solid rgba(20, 88, 230, 0.16);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.safe-tools-panel .secondary-button {
+  justify-content: center;
+  width: calc(100% - 32px);
+  margin: 0 16px 16px;
+}
+
 .recent-panel {
   position: sticky;
   top: 92px;
@@ -1147,9 +1214,7 @@ button:disabled {
   width: 92px;
   height: 92px;
   color: var(--blue);
-  background:
-    radial-gradient(circle, rgba(20, 88, 230, 0.18) 0 22%, transparent 23%),
-    linear-gradient(#fff, #fff);
+  background: radial-gradient(circle, rgba(20, 88, 230, 0.18) 0 22%, transparent 23%), linear-gradient(#fff, #fff);
   border: 1px solid var(--line);
   border-radius: 50%;
   box-shadow: var(--shadow-soft);
@@ -1711,6 +1776,182 @@ button:disabled {
   font-size: 15px;
 }
 
+.tools-view {
+  display: grid;
+  gap: 16px;
+}
+
+.tools-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tool-card {
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  min-height: 280px;
+  padding: 18px;
+}
+
+.tool-card.pass {
+  border-color: rgba(34, 160, 107, 0.32);
+}
+
+.tool-card.fail {
+  border-color: rgba(220, 38, 38, 0.32);
+}
+
+.tool-card-heading {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.tool-card-heading > span {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  color: var(--blue);
+  background: var(--blue-soft);
+  border: 1px solid rgba(20, 88, 230, 0.18);
+  border-radius: var(--radius);
+}
+
+.tool-card-heading h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.tool-card-heading small {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.tool-card p,
+.permission-note p {
+  margin: 0;
+  color: #35425c;
+  line-height: 1.55;
+}
+
+.tool-card code,
+.heading-actions code {
+  width: fit-content;
+  max-width: 100%;
+  padding: 8px 10px;
+  overflow-wrap: anywhere;
+  color: #173056;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.tool-card-footer {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 112px;
+  gap: 10px;
+  align-items: center;
+  margin-top: auto;
+}
+
+.tool-card-footer .primary-button {
+  width: 100%;
+  height: 42px;
+  padding: 0 14px;
+}
+
+.tool-output-button {
+  width: fit-content;
+  padding: 0;
+}
+
+.tool-result {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+}
+
+.tool-result.pass {
+  border-color: rgba(34, 160, 107, 0.32);
+}
+
+.tool-result.fail {
+  border-color: rgba(220, 38, 38, 0.32);
+}
+
+.tool-result.warn {
+  border-color: rgba(245, 158, 11, 0.36);
+}
+
+.tool-result-heading {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tool-result-heading > div {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.tool-result-heading span {
+  font-size: 16px;
+  font-weight: 900;
+}
+
+.tool-result-heading code {
+  width: fit-content;
+  max-width: 100%;
+  padding: 6px 8px;
+  overflow-wrap: anywhere;
+  color: #173056;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.tool-result pre {
+  max-height: 420px;
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  color: #1d2a44;
+  background: #f8fbff;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+}
+
+.permission-note {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+  padding: 18px;
+}
+
+.permission-note > svg {
+  color: var(--green);
+}
+
+.permission-note strong {
+  display: block;
+  margin-bottom: 4px;
+}
+
 .docs-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1801,7 +2042,8 @@ button:disabled {
   }
 
   .settings-grid,
-  .report-card-grid {
+  .report-card-grid,
+  .tools-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1913,6 +2155,7 @@ button:disabled {
   .metric-strip,
   .settings-grid,
   .report-card-grid,
+  .tools-grid,
   .watch-form {
     grid-template-columns: 1fr;
   }

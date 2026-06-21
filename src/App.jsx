@@ -20,6 +20,7 @@ import {
   Link2,
   LockKeyhole,
   Menu,
+  Play,
   Plus,
   RefreshCw,
   RotateCcw,
@@ -30,16 +31,66 @@ import {
   ShieldAlert,
   ShieldCheck,
   Sparkles,
+  Terminal,
   Trash2,
   X,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import { deleteReportById, fallbackReports, fallbackScan, fetchReports, scanUrl } from "./lib/apiClient.js";
+import {
+  deleteReportById,
+  fallbackReports,
+  fallbackScan,
+  fetchReports,
+  runAnalysisTool,
+  scanUrl,
+} from "./lib/apiClient.js";
 import { makeSeedReports, normalizeUrl, levelLabel } from "./lib/demoScanner.js";
 import { makeSummary } from "./lib/localNarrator.js";
 
 const initialReports = makeSeedReports();
 const defaultWatchlist = ["secure-bank-update.net", "invoice-pay-secure.org", "crypto-airdrop-bonus.info"];
+const safeAnalysisTools = [
+  {
+    id: "lint",
+    name: "ESLint",
+    icon: Check,
+    command: "npm run analyze:lint",
+    scope: "Code quality",
+    description: "Checks JS and JSX for bugs, unused values, and maintainability issues inside this project.",
+  },
+  {
+    id: "format",
+    name: "Prettier",
+    icon: Sparkles,
+    command: "npm run analyze:format",
+    scope: "Formatting",
+    description: "Verifies that source, docs, CSS, and config files follow one consistent code style.",
+  },
+  {
+    id: "html",
+    name: "HTML Validate",
+    icon: FileText,
+    command: "npm run analyze:html",
+    scope: "Markup",
+    description: "Validates the Vite entry HTML for structural issues before it reaches production.",
+  },
+  {
+    id: "a11y",
+    name: "Pa11y",
+    icon: Eye,
+    command: "npm run analyze:a11y",
+    scope: "Accessibility",
+    description: "Runs WCAG AA accessibility checks against the local preview page.",
+  },
+  {
+    id: "links",
+    name: "Linkinator",
+    icon: Link2,
+    command: "npm run analyze:links",
+    scope: "Links",
+    description: "Crawls the local preview at low concurrency to catch broken internal links and assets.",
+  },
+];
 
 function firstUrlFromText(value) {
   const text = String(value || "").trim();
@@ -79,12 +130,22 @@ function compactScanTime(report) {
 }
 
 function exportReportsCsv(reports) {
-  const headers = ["domain", "url", "threat_score", "web_posture_score", "severity", "verdict", "scan_id", "scanned_at"];
+  const headers = [
+    "domain",
+    "url",
+    "threat_score",
+    "web_posture_score",
+    "severity",
+    "verdict",
+    "scan_id",
+    "scanned_at",
+  ];
   const rows = reports.map((report) => [
     report.domain,
     report.url,
     report.threatScore ?? report.score,
-    report.postureScore ?? (typeof report.scoreBreakdown?.security === "number" ? report.scoreBreakdown.security * 4 : ""),
+    report.postureScore ??
+      (typeof report.scoreBreakdown?.security === "number" ? report.scoreBreakdown.security * 4 : ""),
     report.level,
     report.verdict,
     report.id,
@@ -264,7 +325,12 @@ function App() {
             />
           )}
           {activeView === "reports" && (
-            <ReportsView reports={reports} activeReport={activeReport} onSelectReport={selectReport} onExport={() => handleExport(reports)} />
+            <ReportsView
+              reports={reports}
+              activeReport={activeReport}
+              onSelectReport={selectReport}
+              onExport={() => handleExport(reports)}
+            />
           )}
           {activeView === "watchlist" && (
             <WatchlistView
@@ -277,6 +343,7 @@ function App() {
               setActiveView={setActiveView}
             />
           )}
+          {activeView === "tools" && <ToolsView />}
           {activeView === "settings" && <SettingsView apiStatus={apiStatus} reports={reports} />}
           {activeView === "keys" && <ApiKeysView apiStatus={apiStatus} />}
           {activeView === "docs" && <DocsView />}
@@ -333,6 +400,10 @@ function TopNav({ activeView, setActiveView, apiStatus, reports }) {
           <BookOpen size={17} />
           Docs
         </button>
+        <button className={activeView === "tools" ? "active" : ""} onClick={() => setActiveView("tools")}>
+          <Terminal size={17} />
+          Tools
+        </button>
         <button className="icon-button hide-sm" aria-label="Notifications" onClick={() => togglePanel("notifications")}>
           <Bell size={18} />
         </button>
@@ -350,7 +421,14 @@ function TopNav({ activeView, setActiveView, apiStatus, reports }) {
               <div className="popover-title">Security alerts</div>
               {recentHigh.length ? (
                 recentHigh.map((report) => (
-                  <button key={report.id} className="popover-row" onClick={() => { setActiveView("reports"); setOpenPanel(null); }}>
+                  <button
+                    key={report.id}
+                    className="popover-row"
+                    onClick={() => {
+                      setActiveView("reports");
+                      setOpenPanel(null);
+                    }}
+                  >
                     <ShieldAlert size={17} />
                     <span>
                       <strong>{report.domain}</strong>
@@ -372,14 +450,26 @@ function TopNav({ activeView, setActiveView, apiStatus, reports }) {
                   <small>{persistenceLabel}</small>
                 </div>
               </div>
-              <button className="popover-row" onClick={() => { setActiveView("settings"); setOpenPanel(null); }}>
+              <button
+                className="popover-row"
+                onClick={() => {
+                  setActiveView("settings");
+                  setOpenPanel(null);
+                }}
+              >
                 <Settings size={17} />
                 <span>
                   <strong>Preferences</strong>
                   <small>Runtime and workspace settings</small>
                 </span>
               </button>
-              <button className="popover-row" onClick={() => { setActiveView("keys"); setOpenPanel(null); }}>
+              <button
+                className="popover-row"
+                onClick={() => {
+                  setActiveView("keys");
+                  setOpenPanel(null);
+                }}
+              >
                 <KeyRound size={17} />
                 <span>
                   <strong>Integrations</strong>
@@ -396,9 +486,17 @@ function TopNav({ activeView, setActiveView, apiStatus, reports }) {
                 ["reports", FileText, "Reports"],
                 ["watchlist", Shield, "Watchlist"],
                 ["history", Clock3, "History"],
+                ["tools", Terminal, "Tools"],
                 ["settings", Settings, "Settings"],
               ].map(([id, Icon, label]) => (
-                <button key={id} className="popover-row" onClick={() => { setActiveView(id); setOpenPanel(null); }}>
+                <button
+                  key={id}
+                  className="popover-row"
+                  onClick={() => {
+                    setActiveView(id);
+                    setOpenPanel(null);
+                  }}
+                >
                   <Icon size={17} />
                   <span>
                     <strong>{label}</strong>
@@ -420,6 +518,7 @@ function SideNav({ activeView, setActiveView }) {
     ["history", Clock3, "History"],
     ["reports", FileText, "Reports"],
     ["watchlist", Shield, "Watchlist"],
+    ["tools", Terminal, "Tools"],
     ["settings", Settings, "Settings"],
     ["keys", KeyRound, "API Keys"],
   ];
@@ -444,7 +543,9 @@ function SideNav({ activeView, setActiveView }) {
         <div className="meter">
           <span style={{ width: "100%" }} />
         </div>
-        <button onClick={() => setActiveView("docs")}>View project docs <ChevronRight size={14} /></button>
+        <button onClick={() => setActiveView("docs")}>
+          View project docs <ChevronRight size={14} />
+        </button>
       </div>
       <div className="version">
         <span className="live-dot" />
@@ -498,9 +599,7 @@ function ScannerView({
           onDrop={(event) => {
             event.preventDefault();
             setIsDropActive(false);
-            const payload =
-              event.dataTransfer.getData("text/uri-list") ||
-              event.dataTransfer.getData("text/plain");
+            const payload = event.dataTransfer.getData("text/uri-list") || event.dataTransfer.getData("text/plain");
             onDroppedUrl(payload);
           }}
           aria-label="URL scanner drop target"
@@ -525,15 +624,17 @@ function ScannerView({
           </button>
         </form>
         <div className="form-subline">
-          <span className={formError ? "form-error" : ""}>
-            {formError || statusText}
-          </span>
+          <span className={formError ? "form-error" : ""}>{formError || statusText}</span>
           <button className="text-button" onClick={() => setActiveView("docs")}>
             <Info size={15} />
             How scoring works
           </button>
         </div>
-        {isScanning ? <ScanningPanel /> : <ReportPanel report={report} onRescan={onScan} />}
+        {isScanning ? (
+          <ScanningPanel />
+        ) : (
+          <ReportPanel report={report} onRescan={onScan} setActiveView={setActiveView} />
+        )}
       </div>
       <RecentScans reports={reports} onSelectReport={onSelectReport} setActiveView={setActiveView} />
     </section>
@@ -571,7 +672,7 @@ function ScanningPanel() {
   );
 }
 
-function ReportPanel({ report, onRescan }) {
+function ReportPanel({ report, onRescan, setActiveView }) {
   const [activeTab, setActiveTab] = useState("Overview");
   const tabs = ["Overview", "WHOIS", "DNS", "TLS", "Redirects", "Headers", "Reputation"];
   const breakdown = [
@@ -601,11 +702,11 @@ function ReportPanel({ report, onRescan }) {
             {report.level === "low" ? <ShieldCheck size={34} /> : <ShieldAlert size={34} />}
             <div>
               <strong>{report.verdict}</strong>
-                <p>
-                  {report.level === "low"
+              <p>
+                {report.level === "low"
                   ? "No immediate action is needed for this report."
                   : "This URL shows indicators that may pose a threat to users."}
-                </p>
+              </p>
             </div>
           </div>
         </div>
@@ -637,7 +738,7 @@ function ReportPanel({ report, onRescan }) {
         ))}
       </div>
 
-      <ReportTabContent activeTab={activeTab} report={report} onRescan={onRescan} />
+      <ReportTabContent activeTab={activeTab} report={report} onRescan={onRescan} setActiveView={setActiveView} />
     </div>
   );
 }
@@ -666,7 +767,7 @@ function passWarnFail(condition, warnCondition = false) {
   return "pass";
 }
 
-function ReportTabContent({ activeTab, report, onRescan }) {
+function ReportTabContent({ activeTab, report, onRescan, setActiveView }) {
   const rdap = reconData(report, "rdap");
   const dns = reconData(report, "dns");
   const http = reconData(report, "http");
@@ -680,7 +781,10 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         ["Domain", report.domain],
         ["Registrar", rdap?.registrar || "Not available"],
         ["Registered on", readableDate(rdap?.registeredAt, `${report.registeredDays} days ago`)],
-        ["Expires in", typeof rdap?.expiresDays === "number" ? `${rdap.expiresDays} days` : `${report.expiresDays} days`],
+        [
+          "Expires in",
+          typeof rdap?.expiresDays === "number" ? `${rdap.expiresDays} days` : `${report.expiresDays} days`,
+        ],
         ["RDAP status", rdap?.found ? "Found" : rdap?.error || "Not available"],
         ["Name servers", compactList(rdap?.nameservers || dns?.ns, "Not observed", 3)],
       ]}
@@ -692,7 +796,14 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         ["A record", compactList(dns?.a, report.ip, 3)],
         ["AAAA record", compactList(dns?.aaaa, "Not observed", 2)],
         ["NS", compactList(dns?.ns, "Not observed", 3)],
-        ["MX", compactList(dns?.mx?.map((record) => `${record.priority} ${record.exchange}`), `10 mail.${report.domain}`, 2)],
+        [
+          "MX",
+          compactList(
+            dns?.mx?.map((record) => `${record.priority} ${record.exchange}`),
+            `10 mail.${report.domain}`,
+            2,
+          ),
+        ],
         ["SPF", dns?.spf?.present ? "Present" : "Not observed"],
         ["DMARC", dns?.dmarc?.present ? "Present" : "Not observed"],
       ]}
@@ -715,7 +826,10 @@ function ReportTabContent({ activeTab, report, onRescan }) {
   const reputationContent = <ReputationList report={report} />;
 
   const rdapStatus = passWarnFail(false, !rdap?.found);
-  const dnsStatus = passWarnFail(false, Boolean(dns?.mailSecurity?.mxPresent && (!dns.mailSecurity.spfPresent || !dns.mailSecurity.dmarcPresent)));
+  const dnsStatus = passWarnFail(
+    false,
+    Boolean(dns?.mailSecurity?.mxPresent && (!dns.mailSecurity.spfPresent || !dns.mailSecurity.dmarcPresent)),
+  );
   const tlsStatus = passWarnFail(tls?.expired || tls?.available === false, tls?.expiringSoon);
   const headerStatus = passWarnFail(report.headerMisses > 3, report.headerMisses > 1);
   const redirectStatus = passWarnFail(http?.crossDomain, report.redirectCount > 2);
@@ -729,8 +843,12 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         status={rdapStatus}
         primary={whoisContent}
         findings={[
-          rdap?.found ? "RDAP returned public registration metadata for this domain." : "RDAP did not return a public registration profile.",
-          report.registeredDays < 120 ? "Recently registered domain deserves extra scrutiny." : "Domain age is not unusually new.",
+          rdap?.found
+            ? "RDAP returned public registration metadata for this domain."
+            : "RDAP did not return a public registration profile.",
+          report.registeredDays < 120
+            ? "Recently registered domain deserves extra scrutiny."
+            : "Domain age is not unusually new.",
           `Top-level domain: .${report.tld}`,
         ]}
       />
@@ -743,8 +861,12 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         status={dnsStatus}
         primary={dnsContent}
         findings={[
-          dns?.a?.length ? `${dns.a.length} IPv4 record${dns.a.length === 1 ? "" : "s"} observed.` : "No IPv4 A record was observed.",
-          dns?.mailSecurity?.mxPresent ? "MX records are present for domain mail routing." : "No MX records were observed.",
+          dns?.a?.length
+            ? `${dns.a.length} IPv4 record${dns.a.length === 1 ? "" : "s"} observed.`
+            : "No IPv4 A record was observed.",
+          dns?.mailSecurity?.mxPresent
+            ? "MX records are present for domain mail routing."
+            : "No MX records were observed.",
           dns?.mailSecurity?.mxPresent && (!dns.mailSecurity.spfPresent || !dns.mailSecurity.dmarcPresent)
             ? "Mail DNS exists but SPF or DMARC is missing."
             : "Mail authentication DNS posture has no obvious passive gap.",
@@ -759,9 +881,19 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         status={tlsStatus}
         primary={tlsContent}
         findings={[
-          tls?.available === false ? "TLS certificate details were not available for this target." : "TLS certificate details were collected from port 443.",
-          tls?.expired ? "Certificate is expired." : tls?.expiringSoon ? "Certificate renewal window is getting close." : "Certificate validity window is acceptable.",
-          tls?.authorized ? "Certificate chain is trusted by the runtime." : tls?.authorizationError ? `Trust note: ${tls.authorizationError}` : "Trust status was not reported.",
+          tls?.available === false
+            ? "TLS certificate details were not available for this target."
+            : "TLS certificate details were collected from port 443.",
+          tls?.expired
+            ? "Certificate is expired."
+            : tls?.expiringSoon
+              ? "Certificate renewal window is getting close."
+              : "Certificate validity window is acceptable.",
+          tls?.authorized
+            ? "Certificate chain is trusted by the runtime."
+            : tls?.authorizationError
+              ? `Trust note: ${tls.authorizationError}`
+              : "Trust status was not reported.",
         ]}
       />
     ),
@@ -774,8 +906,12 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         primary={redirectsContent}
         findings={[
           `${report.redirectCount} redirect hop${report.redirectCount === 1 ? "" : "s"} observed for this URL.`,
-          report.redirectCount > 2 ? "Multiple hops can hide the final destination from users." : "Redirect chain is short and readable.",
-          http?.crossDomain ? "The final host differs from the starting host." : "No cross-domain final hop was observed.",
+          report.redirectCount > 2
+            ? "Multiple hops can hide the final destination from users."
+            : "Redirect chain is short and readable.",
+          http?.crossDomain
+            ? "The final host differs from the starting host."
+            : "No cross-domain final hop was observed.",
         ]}
       />
     ),
@@ -789,7 +925,9 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         findings={[
           `${report.headerMisses} important header${report.headerMisses === 1 ? "" : "s"} missing in this passive check.`,
           securityTxt?.found ? "security.txt is published for coordinated disclosure." : "security.txt was not found.",
-          robotsTxt?.found ? `robots.txt found with ${robotsTxt.disallowCount} disallow rule${robotsTxt.disallowCount === 1 ? "" : "s"}.` : "robots.txt was not found.",
+          robotsTxt?.found
+            ? `robots.txt found with ${robotsTxt.disallowCount} disallow rule${robotsTxt.disallowCount === 1 ? "" : "s"}.`
+            : "robots.txt was not found.",
         ]}
       />
     ),
@@ -801,9 +939,15 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         status={report.reputationHits ? "fail" : "pass"}
         primary={reputationContent}
         findings={[
-          report.reputationHits ? `${report.reputationHits} local reputation hit${report.reputationHits === 1 ? "" : "s"} found.` : "No local reputation hits were found.",
-          report.keywordHits.length ? `Keyword signals: ${report.keywordHits.join(", ")}` : "No suspicious keyword pattern detected.",
-          report.reputationHits ? "Treat this destination cautiously until verified." : "No local reputation or keyword concerns were raised.",
+          report.reputationHits
+            ? `${report.reputationHits} local reputation hit${report.reputationHits === 1 ? "" : "s"} found.`
+            : "No local reputation hits were found.",
+          report.keywordHits.length
+            ? `Keyword signals: ${report.keywordHits.join(", ")}`
+            : "No suspicious keyword pattern detected.",
+          report.reputationHits
+            ? "Treat this destination cautiously until verified."
+            : "No local reputation or keyword concerns were raised.",
         ]}
       />
     ),
@@ -836,9 +980,47 @@ function ReportTabContent({ activeTab, report, onRescan }) {
         </SignalPanel>
       </div>
       <aside className="analyst-column">
+        <SafeToolsPanel compact onViewAll={() => setActiveView("tools")} />
         <AnalystSummaryPanel report={report} />
         <ActionsPanel onRescan={onRescan} />
       </aside>
+    </section>
+  );
+}
+
+function SafeToolsPanel({ compact = false, onViewAll }) {
+  const shownTools = compact ? safeAnalysisTools.slice(0, 3) : safeAnalysisTools;
+
+  return (
+    <section className="panel safe-tools-panel">
+      <div className="panel-heading">
+        <div>
+          <span>Safe analysis tools</span>
+          <small>Local project checks</small>
+        </div>
+        <StatusBadge status="pass" label="Safe" />
+      </div>
+      <div className="safe-tool-list">
+        {shownTools.map((tool) => {
+          const Icon = tool.icon;
+          return (
+            <div className="safe-tool-row" key={tool.name}>
+              <Icon size={17} />
+              <div>
+                <strong>{tool.name}</strong>
+                <span>{tool.scope}</span>
+              </div>
+              <code>{tool.command.replace("npm run ", "")}</code>
+            </div>
+          );
+        })}
+      </div>
+      {compact && (
+        <button className="secondary-button" onClick={onViewAll}>
+          View all tools
+          <ChevronRight size={16} />
+        </button>
+      )}
     </section>
   );
 }
@@ -983,12 +1165,22 @@ function RedirectChain({ report }) {
     ? hops.map((hop, index) => [
         hop.url,
         hop.error ? hop.error : `${hop.status || "No"} ${hop.location ? `-> ${hop.location}` : "response"}`,
-        hop.error ? "fail" : hop.status >= 300 && hop.status < 400 ? "warn" : index === hops.length - 1 ? "pass" : "warn",
+        hop.error
+          ? "fail"
+          : hop.status >= 300 && hop.status < 400
+            ? "warn"
+            : index === hops.length - 1
+              ? "pass"
+              : "warn",
       ])
     : [
         [`https://${report.domain}`, "301 Moved Permanently", "pass"],
         [`https://www.${report.domain}`, "302 Found", "warn"],
-        [report.redirectCount > 2 ? "https://secure-verify-account.net/final" : report.url, "200 OK", report.redirectCount > 2 ? "fail" : "pass"],
+        [
+          report.redirectCount > 2 ? "https://secure-verify-account.net/final" : report.url,
+          "200 OK",
+          report.redirectCount > 2 ? "fail" : "pass",
+        ],
       ];
 
   return (
@@ -1048,11 +1240,27 @@ function HeaderList({ report }) {
 
 function ReputationList({ report }) {
   const rows = [
-    ["Local keyword model", report.keywordHits.length ? report.keywordHits.join(", ") : "No keyword hit", report.keywordHits.length ? "warn" : "pass"],
-    ["Local reputation model", report.reputationHits ? `${report.reputationHits} hit estimate` : "No hit", report.reputationHits ? "fail" : "pass"],
+    [
+      "Local keyword model",
+      report.keywordHits.length ? report.keywordHits.join(", ") : "No keyword hit",
+      report.keywordHits.length ? "warn" : "pass",
+    ],
+    [
+      "Local reputation model",
+      report.reputationHits ? `${report.reputationHits} hit estimate` : "No hit",
+      report.reputationHits ? "fail" : "pass",
+    ],
     ["External reputation APIs", "Not connected", "warn"],
-    ["Security.txt", reconData(report, "securityTxt")?.found ? "Published" : "Not found", reconData(report, "securityTxt")?.found ? "pass" : "warn"],
-    ["Robots.txt", reconData(report, "robotsTxt")?.found ? "Published" : "Not found", reconData(report, "robotsTxt")?.found ? "pass" : "warn"],
+    [
+      "Security.txt",
+      reconData(report, "securityTxt")?.found ? "Published" : "Not found",
+      reconData(report, "securityTxt")?.found ? "pass" : "warn",
+    ],
+    [
+      "Robots.txt",
+      reconData(report, "robotsTxt")?.found ? "Published" : "Not found",
+      reconData(report, "robotsTxt")?.found ? "pass" : "warn",
+    ],
   ];
 
   return (
@@ -1142,7 +1350,7 @@ function HistoryView({
         acc[report.level] += 1;
         return acc;
       },
-      { low: 0, medium: 0, high: 0, critical: 0 }
+      { low: 0, medium: 0, high: 0, critical: 0 },
     );
   }, [allReports]);
   const total = allReports.length || 1;
@@ -1285,7 +1493,12 @@ function ReportsView({ reports, activeReport, onSelectReport, onExport }) {
           <div className="metric-strip">
             <MetricCard label="Saved reports" value={reports.length} icon={FileText} />
             <MetricCard label="High risk" value={highRisk.length} icon={ShieldAlert} tone="danger" />
-            <MetricCard label="Clean domains" value={reports.filter((report) => report.level === "low").length} icon={ShieldCheck} tone="safe" />
+            <MetricCard
+              label="Clean domains"
+              value={reports.filter((report) => report.level === "low").length}
+              icon={ShieldCheck}
+              tone="safe"
+            />
           </div>
           <div className="report-card-grid">
             {reports.map((report) => (
@@ -1332,7 +1545,11 @@ function ReportsView({ reports, activeReport, onSelectReport, onExport }) {
 function WatchlistView({ watchlist, setWatchlist, watchInput, setWatchInput, reports, setInputUrl, setActiveView }) {
   function addWatchItem(event) {
     event.preventDefault();
-    const domain = watchInput.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
+    const domain = watchInput
+      .trim()
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .replace(/\/.*$/, "");
     if (!domain || watchlist.includes(domain)) return;
     setWatchlist((current) => [domain, ...current]);
     setWatchInput("");
@@ -1351,7 +1568,11 @@ function WatchlistView({ watchlist, setWatchlist, watchInput, setWatchInput, rep
           <form className="watch-form panel" onSubmit={addWatchItem}>
             <label className="search-field">
               <Globe2 size={18} />
-              <input value={watchInput} onChange={(event) => setWatchInput(event.target.value)} placeholder="Add domain, e.g. example.com" />
+              <input
+                value={watchInput}
+                onChange={(event) => setWatchInput(event.target.value)}
+                placeholder="Add domain, e.g. example.com"
+              />
             </label>
             <button className="primary-button" type="submit">
               <Plus size={17} />
@@ -1367,7 +1588,11 @@ function WatchlistView({ watchlist, setWatchlist, watchInput, setWatchInput, rep
                     <Globe2 size={18} />
                     <strong>{domain}</strong>
                   </span>
-                  {lastReport ? <SeverityChip level={lastReport.level} /> : <StatusBadge status="warn" label="Not scanned" />}
+                  {lastReport ? (
+                    <SeverityChip level={lastReport.level} />
+                  ) : (
+                    <StatusBadge status="warn" label="Not scanned" />
+                  )}
                   <button
                     className="ghost-button"
                     onClick={() => {
@@ -1378,7 +1603,11 @@ function WatchlistView({ watchlist, setWatchlist, watchInput, setWatchInput, rep
                     <ScanSearch size={16} />
                     Scan
                   </button>
-                  <button className="icon-button" onClick={() => setWatchlist((current) => current.filter((item) => item !== domain))} aria-label={`Remove ${domain}`}>
+                  <button
+                    className="icon-button"
+                    onClick={() => setWatchlist((current) => current.filter((item) => item !== domain))}
+                    aria-label={`Remove ${domain}`}
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -1395,9 +1624,16 @@ function WatchlistView({ watchlist, setWatchlist, watchInput, setWatchInput, rep
           </div>
           <div className="drawer-body">
             <p>
-              This MVP stores a local review list for domains you want to rescan. The next backend step can persist this list per user or project.
+              This MVP stores a local review list for domains you want to rescan. The next backend step can persist this
+              list per user or project.
             </p>
-            <DataRows rows={[["Tracked domains", watchlist.length], ["Quick scan", "Enabled"], ["Auto monitoring", "Planned"]]} />
+            <DataRows
+              rows={[
+                ["Tracked domains", watchlist.length],
+                ["Quick scan", "Enabled"],
+                ["Auto monitoring", "Planned"],
+              ]}
+            />
           </div>
         </aside>
       </div>
@@ -1436,12 +1672,30 @@ function SettingsView({ apiStatus, reports }) {
           />
         </SettingPanel>
         <SettingPanel title="Interface" icon={Settings}>
-          <ToggleRow label="Compact dashboard density" checked={settings.compact} onToggle={() => toggleSetting("compact")} />
-          <ToggleRow label="Show passive-analysis notice" checked={settings.demoNotice} onToggle={() => toggleSetting("demoNotice")} />
-          <ToggleRow label="Reduce decorative motion" checked={settings.reducedMotion} onToggle={() => toggleSetting("reducedMotion")} />
+          <ToggleRow
+            label="Compact dashboard density"
+            checked={settings.compact}
+            onToggle={() => toggleSetting("compact")}
+          />
+          <ToggleRow
+            label="Show passive-analysis notice"
+            checked={settings.demoNotice}
+            onToggle={() => toggleSetting("demoNotice")}
+          />
+          <ToggleRow
+            label="Reduce decorative motion"
+            checked={settings.reducedMotion}
+            onToggle={() => toggleSetting("reducedMotion")}
+          />
         </SettingPanel>
         <SettingPanel title="Data handling" icon={Archive}>
-          <DataRows rows={[["CSV export", "Enabled"], ["Delete reports", "Enabled"], ["Public sharing", "Not enabled"]]} />
+          <DataRows
+            rows={[
+              ["CSV export", "Enabled"],
+              ["Delete reports", "Enabled"],
+              ["Public sharing", "Not enabled"],
+            ]}
+          />
         </SettingPanel>
       </div>
     </section>
@@ -1458,7 +1712,12 @@ function ApiKeysView({ apiStatus }) {
         </div>
       </div>
       <div className="settings-grid">
-        <IntegrationCard title="MongoDB Atlas" status={apiStatus === "mongodb" ? "Connected" : "Not connected"} icon={Database} active={apiStatus === "mongodb"} />
+        <IntegrationCard
+          title="MongoDB Atlas"
+          status={apiStatus === "mongodb" ? "Connected" : "Not connected"}
+          icon={Database}
+          active={apiStatus === "mongodb"}
+        />
         <IntegrationCard title="WHOIS / RDAP" status="Connected" icon={Globe2} active />
         <IntegrationCard title="Reputation APIs" status="Planned" icon={ShieldAlert} />
         <IntegrationCard title="AI report narration" status="Planned" icon={Sparkles} />
@@ -1466,7 +1725,8 @@ function ApiKeysView({ apiStatus }) {
       <div className="panel doc-panel wide">
         <h2>Secret handling</h2>
         <p>
-          API keys belong in server-side environment variables only. The frontend should call protected API routes, never third-party services directly.
+          API keys belong in server-side environment variables only. The frontend should call protected API routes,
+          never third-party services directly.
         </p>
       </div>
     </section>
@@ -1544,7 +1804,8 @@ function DocsView() {
           <h2>Architecture</h2>
           <p>
             VeilURL is designed as a MERN-style Vercel application. The scanner uses Vercel API routes for passive
-            recon, stores report history in MongoDB Atlas, and keeps third-party or secret-backed integrations server-side.
+            recon, stores report history in MongoDB Atlas, and keeps third-party or secret-backed integrations
+            server-side.
           </p>
           <div className="architecture-flow">
             <span>React JSX</span>
@@ -1558,11 +1819,141 @@ function DocsView() {
         </div>
         <div className="panel doc-panel">
           <h2>MVP scope</h2>
-          <p>URL reports are generated from passive public signals: DNS, RDAP, redirects, HTTP headers, TLS, and well-known files.</p>
+          <p>
+            URL reports are generated from passive public signals: DNS, RDAP, redirects, HTTP headers, TLS, and
+            well-known files.
+          </p>
         </div>
         <div className="panel doc-panel">
           <h2>Future integrations</h2>
           <p>Google Safe Browsing, VirusTotal, PDF export, scheduled monitoring, and AI report narration.</p>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ToolsView() {
+  const [toolRuns, setToolRuns] = useState({});
+  const [activeResultId, setActiveResultId] = useState(null);
+  const runningToolId = safeAnalysisTools.find((tool) => toolRuns[tool.id]?.status === "running")?.id;
+  const activeRun = activeResultId ? toolRuns[activeResultId] : null;
+  const activeTool = activeResultId ? safeAnalysisTools.find((tool) => tool.id === activeResultId) : null;
+
+  async function handleRunTool(tool) {
+    setActiveResultId(tool.id);
+    setToolRuns((current) => ({
+      ...current,
+      [tool.id]: {
+        status: "running",
+        output: "Starting analysis...",
+        command: tool.command,
+        startedAt: new Date().toISOString(),
+      },
+    }));
+
+    try {
+      const payload = await runAnalysisTool(tool.id);
+      const output = [payload.result?.stdout, payload.result?.stderr].filter(Boolean).join("\n\n");
+      setToolRuns((current) => ({
+        ...current,
+        [tool.id]: {
+          status: payload.result?.ok ? "pass" : "fail",
+          output: output || "Command completed with no output.",
+          command: payload.tool?.command || tool.command,
+          code: payload.result?.code,
+          startedAt: payload.meta?.startedAt,
+          finishedAt: payload.meta?.finishedAt,
+        },
+      }));
+    } catch (error) {
+      setToolRuns((current) => ({
+        ...current,
+        [tool.id]: {
+          status: "fail",
+          output: error.message || "Unable to run this analysis tool.",
+          command: tool.command,
+          finishedAt: new Date().toISOString(),
+        },
+      }));
+    }
+  }
+
+  return (
+    <section className="tools-view">
+      <div className="page-heading">
+        <div>
+          <h1>Safe analysis tools</h1>
+          <p>These checks run against this codebase or the local preview, so they stay inside permission-safe scope.</p>
+        </div>
+        <div className="heading-actions">
+          <code>npm run analyze</code>
+        </div>
+      </div>
+      {activeTool && activeRun && (
+        <div className={`panel tool-result ${activeRun.status}`}>
+          <div className="tool-result-heading">
+            <div>
+              <span>{activeTool.name} result</span>
+              <code>{activeRun.command}</code>
+            </div>
+            <StatusBadge
+              status={activeRun.status === "running" ? "warn" : activeRun.status === "pass" ? "pass" : "fail"}
+              label={
+                activeRun.status === "running" ? "Running" : activeRun.status === "pass" ? "Passed" : "Needs review"
+              }
+            />
+          </div>
+          <pre>{activeRun.output}</pre>
+        </div>
+      )}
+      <div className="tools-grid">
+        {safeAnalysisTools.map((tool) => {
+          const Icon = tool.icon;
+          const run = toolRuns[tool.id];
+          const isRunning = run?.status === "running";
+          const isDisabled = Boolean(runningToolId && runningToolId !== tool.id);
+          return (
+            <article className={`panel tool-card ${run?.status || ""}`} key={tool.name}>
+              <div className="tool-card-heading">
+                <span>
+                  <Icon size={20} />
+                </span>
+                <div>
+                  <h2>{tool.name}</h2>
+                  <small>{tool.scope}</small>
+                </div>
+              </div>
+              <p>{tool.description}</p>
+              <div className="tool-card-footer">
+                <code>{tool.command}</code>
+                <button
+                  className="primary-button"
+                  onClick={() => handleRunTool(tool)}
+                  disabled={isRunning || isDisabled}
+                >
+                  {isRunning ? <RefreshCw className="spin" size={17} /> : <Play size={17} />}
+                  {isRunning ? "Running" : "Run"}
+                </button>
+              </div>
+              {run?.status && run.status !== "running" && (
+                <button className="text-button tool-output-button" onClick={() => setActiveResultId(tool.id)}>
+                  {run.status === "pass" ? <Check size={15} /> : <X size={15} />}
+                  View output
+                </button>
+              )}
+            </article>
+          );
+        })}
+      </div>
+      <div className="panel permission-note">
+        <ShieldCheck size={21} />
+        <div>
+          <strong>Safe boundary</strong>
+          <p>
+            These tools do not fuzz, brute-force, exploit, or actively scan third-party infrastructure. Keep active
+            security scanners limited to systems you own or have written permission to test.
+          </p>
         </div>
       </div>
     </section>
@@ -1593,9 +1984,9 @@ function MobileNav({ activeView, setActiveView }) {
         <BookOpen size={20} />
         Docs
       </button>
-      <button className={activeView === "settings" ? "active" : ""} onClick={() => setActiveView("settings")}>
-        <Settings size={20} />
-        Settings
+      <button className={activeView === "tools" ? "active" : ""} onClick={() => setActiveView("tools")}>
+        <Terminal size={20} />
+        Tools
       </button>
     </nav>
   );

@@ -63,8 +63,8 @@ npm run build
 
 ## Environment Variables
 
-| Name | Required | Description |
-| --- | --- | --- |
+| Name          | Required | Description                                                                                                   |
+| ------------- | -------- | ------------------------------------------------------------------------------------------------------------- |
 | `MONGODB_URI` | Optional | Enables persistent scan history in MongoDB Atlas. Without it, the app falls back to in-memory/sample reports. |
 
 ## Deployment

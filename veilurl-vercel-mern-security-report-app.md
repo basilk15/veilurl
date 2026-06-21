@@ -118,7 +118,7 @@ Example report object:
 Risk levels:
 
 ```js
-["low", "medium", "high", "critical"]
+["low", "medium", "high", "critical"];
 ```
 
 ## API Design
@@ -129,7 +129,7 @@ Request:
 
 ```js
 {
-  url: "https://example.com"
+  url: "https://example.com";
 }
 ```
 
@@ -184,7 +184,7 @@ Risk score rules:
 Suspicious keywords:
 
 ```js
-["login", "verify", "secure", "account", "wallet", "free", "bonus", "reset"]
+["login", "verify", "secure", "account", "wallet", "free", "bonus", "reset"];
 ```
 
 ## Analyst Summary
