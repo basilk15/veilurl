@@ -165,7 +165,209 @@ function exportReportsCsv(reports) {
   URL.revokeObjectURL(url);
 }
 
+function LandingPage({ onLaunch, onOpenToolsDocs }) {
+  return (
+    <main className="landing-shell">
+      <div className="landing-grid" aria-hidden="true" />
+      <header className="landing-nav" aria-label="VeilURL intro navigation">
+        <div className="landing-brand">
+          <span className="landing-logo" aria-hidden="true">
+            <ShieldCheck size={28} />
+          </span>
+          <span className="landing-wordmark">
+            Veil<span>URL</span>
+          </span>
+        </div>
+      </header>
+
+      <section className="landing-hero" aria-label="VeilURL link safety scanner">
+        <div className="landing-copy">
+          <div className="landing-kicker">
+            <Sparkles size={18} />
+            Permission-safe URL intelligence
+          </div>
+          <h1>Scan links before they reach your users</h1>
+          <p>
+            VeilURL combines domain posture, DNS, TLS, redirects, headers, reputation, and local-safe analysis tools
+            into one calm security workspace.
+          </p>
+          <div className="landing-actions">
+            <button className="landing-primary" type="button" onClick={onLaunch}>
+              Launch dashboard
+              <ScanSearch size={20} />
+            </button>
+            <button className="landing-secondary" type="button" onClick={onOpenToolsDocs}>
+              Safe tools docs
+              <Terminal size={20} />
+            </button>
+          </div>
+          <div className="landing-proof-strip" aria-label="Included checks">
+            <span>
+              <Globe2 size={16} />
+              URL posture
+            </span>
+            <span>
+              <LockKeyhole size={16} />
+              TLS signals
+            </span>
+            <span>
+              <Check size={16} />
+              Local tools
+            </span>
+          </div>
+        </div>
+
+        <div className="landing-preview" aria-label="VeilURL dashboard preview">
+          <div className="scan-ring one" aria-hidden="true" />
+          <div className="scan-ring two" aria-hidden="true" />
+          <div className="preview-window">
+            <div className="preview-topbar">
+              <span />
+              <span />
+              <span />
+              <strong>veilurl.app/scan</strong>
+            </div>
+            <div className="preview-body">
+              <div className="preview-score">
+                <div className="preview-score-ring">
+                  <strong>08</strong>
+                  <span>/100</span>
+                </div>
+                <small>Low risk</small>
+              </div>
+              <div className="preview-details">
+                <div className="preview-url">
+                  <Globe2 size={18} />
+                  https://demo-safe-site.test
+                </div>
+                <div className="signal-row">
+                  <span>Domain</span>
+                  <i />
+                </div>
+                <div className="signal-row">
+                  <span>DNS</span>
+                  <i />
+                </div>
+                <div className="signal-row">
+                  <span>TLS</span>
+                  <i />
+                </div>
+              </div>
+            </div>
+            <div className="preview-tabs">
+              <span>WHOIS</span>
+              <span>DNS</span>
+              <span>TLS</span>
+              <span>Tools</span>
+            </div>
+            <div className="preview-tools">
+              {safeAnalysisTools.slice(0, 4).map((tool) => {
+                const ToolIcon = tool.icon;
+                return (
+                  <span key={tool.id}>
+                    <ToolIcon size={15} />
+                    {tool.name}
+                  </span>
+                );
+              })}
+            </div>
+            <div className="scan-beam" aria-hidden="true" />
+          </div>
+        </div>
+      </section>
+    </main>
+  );
+}
+
+function ToolDocsPage({ onLaunch, onBack }) {
+  return (
+    <main className="tool-docs-shell">
+      <header className="tool-docs-nav">
+        <button className="landing-brand tool-docs-brand" type="button" onClick={onBack}>
+          <span className="landing-logo" aria-hidden="true">
+            <ShieldCheck size={28} />
+          </span>
+          <span className="landing-wordmark">
+            Veil<span>URL</span>
+          </span>
+        </button>
+        <button className="landing-primary compact" type="button" onClick={onLaunch}>
+          Launch dashboard
+          <ScanSearch size={18} />
+        </button>
+      </header>
+
+      <section className="tool-docs-hero">
+        <div>
+          <span className="landing-kicker">
+            <BookOpen size={18} />
+            Safe analysis documentation
+          </span>
+          <h1>What VeilURL checks, and why these tools stay permission-safe</h1>
+          <p>
+            The scanner separates passive URL intelligence from local project quality checks. It does not brute force,
+            exploit, fuzz, bypass login, scrape private data, or run intrusive tests against websites.
+          </p>
+        </div>
+        <div className="tool-docs-summary">
+          <strong>Safety boundary</strong>
+          <span>Passive public signals for URLs</span>
+          <span>Local-only checks for this codebase</span>
+          <span>No unauthorized scanning or exploitation</span>
+        </div>
+      </section>
+
+      <section className="tool-docs-grid" aria-label="Safe tools used by VeilURL">
+        {safeAnalysisTools.map((tool) => {
+          const ToolIcon = tool.icon;
+          return (
+            <article className="tool-doc-card" key={tool.id}>
+              <div className="tool-doc-card-heading">
+                <span>
+                  <ToolIcon size={22} />
+                </span>
+                <div>
+                  <h2>{tool.name}</h2>
+                  <small>{tool.scope}</small>
+                </div>
+              </div>
+              <p>{tool.description}</p>
+              <code>{tool.command}</code>
+            </article>
+          );
+        })}
+      </section>
+
+      <section className="logic-docs-grid" aria-label="Analysis logic">
+        <article>
+          <h2>URL risk scoring</h2>
+          <p>
+            VeilURL scores a submitted link from public and passive evidence: URL structure, redirect behavior, DNS
+            posture, TLS information, security headers, content signals, and known-risk patterns.
+          </p>
+        </article>
+        <article>
+          <h2>Local tool checks</h2>
+          <p>
+            ESLint, Prettier, HTML Validate, Pa11y, and Linkinator run against this app or its local preview. They are
+            project health tools, not offensive web-security tools.
+          </p>
+        </article>
+        <article>
+          <h2>Permission rule</h2>
+          <p>
+            Tools that attempt exploitation, authentication bypass, password attacks, directory brute forcing, high-rate
+            crawling, or vulnerability probing require explicit owner authorization and are intentionally outside this
+            product.
+          </p>
+        </article>
+      </section>
+    </main>
+  );
+}
+
 function App() {
+  const [entryView, setEntryView] = useState("landing");
   const [activeView, setActiveView] = useState("scanner");
   const [reports, setReports] = useState(initialReports);
   const [activeReport, setActiveReport] = useState(initialReports[0]);
@@ -287,6 +489,14 @@ function App() {
       setActiveReport(fallback);
       setInputUrl(fallback.url);
     }
+  }
+
+  if (entryView === "landing") {
+    return <LandingPage onLaunch={() => setEntryView("app")} onOpenToolsDocs={() => setEntryView("tool-docs")} />;
+  }
+
+  if (entryView === "tool-docs") {
+    return <ToolDocsPage onLaunch={() => setEntryView("app")} onBack={() => setEntryView("landing")} />;
   }
 
   return (
